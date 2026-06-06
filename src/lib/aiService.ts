@@ -1,6 +1,5 @@
-// API service for AI analysis using Gemini and OpenAI
-const GEMINI_API_KEY = "AIzaSyDdzVd2s0hUNDdGkpe7RhaUeiidja0zBRs";
-const OPENAI_API_KEY = "sk-ijklmnopqrstuvwxijklmnopqrstuvwxijklmnop";
+// API service for AI analysis using Gemini
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
 
 export interface SymptomAnalysisRequest {
   symptoms_text: string;
@@ -144,68 +143,6 @@ async function analyzeWithGemini(symptoms: SymptomAnalysisRequest): Promise<Anal
   }
 }
 
-async function analyzeWithOpenAI(symptoms: SymptomAnalysisRequest): Promise<AnalysisResponse | null> {
-  try {
-    console.log("Attempting OpenAI API call...");
-    const prompt = buildPrompt(symptoms);
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a medical triage assistant for an educational demo. Respond ONLY with valid JSON, no markdown.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.2,
-        max_tokens: 1024,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("❌ OpenAI API error:", error);
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      console.error("No content in OpenAI response");
-      return null;
-    }
-
-    // Extract JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error("No JSON found in OpenAI response:", content);
-      return null;
-    }
-
-    const result = JSON.parse(jsonMatch[0]);
-    console.log("✅ OpenAI analysis successful with recommendations:", {
-      triage: result.triage_level,
-      medicines: result.recommendations?.medicines?.length || 0,
-      remedies: result.recommendations?.home_remedies?.length || 0,
-    });
-    return result;
-  } catch (error) {
-    console.error("❌ OpenAI API error:", error);
-    return null;
-  }
-}
 
 function ensureCompleteResponse(result: Record<string, unknown>): AnalysisResponse {
   const recs = result.recommendations as Record<string, unknown> | undefined;
@@ -254,17 +191,9 @@ export async function analyzeSymptoms(symptoms: SymptomAnalysisRequest): Promise
     return ensureCompleteResponse(result as unknown as Record<string, unknown>);
   }
 
-  // Fallback to OpenAI
-  console.log("⚠️ Gemini failed, trying OpenAI fallback...");
-  result = await analyzeWithOpenAI(symptoms);
-  
-  if (result) {
-    console.log("✅ OpenAI API successful - returning analysis with recommendations");
-    return ensureCompleteResponse(result as unknown as Record<string, unknown>);
-  }
+  // Gemini failed — use built-in symptom keyword analysis as fallback
 
-  // If both fail, return comprehensive fallback response
-  console.warn("❌ All AI APIs failed, using advanced symptom-specific fallback response");
+  console.warn("⚠️ Gemini API unavailable, using built-in symptom analysis fallback");
   
   const symptomsLower = symptoms.symptoms_text.toLowerCase();
   const severityMap: Record<string, string> = {

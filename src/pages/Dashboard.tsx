@@ -15,6 +15,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true); // ✅ Prevent race-condition redirect
   const [hasConsent, setHasConsent] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<"new" | "history">("new");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -44,20 +45,28 @@ const Dashboard = () => {
   const greetingInitials = (userIdentifier.slice(0, 2) || "TR").toUpperCase();
 
   useEffect(() => {
+    // ✅ Get session FIRST before listening for changes (prevents flash-redirect)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setSessionLoading(false);
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      if (!session) {
+        navigate("/auth");
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (user) {
@@ -83,20 +92,39 @@ const Dashboard = () => {
   const checkConsent = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from("consent_records")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("consent_given", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error checking consent:", error);
+    // First check localStorage for instant response (also works if DB not set up)
+    const localConsent = localStorage.getItem(`apna-consent-${user.id}`);
+    if (localConsent === "true") {
+      setHasConsent(true);
+      return;
     }
 
-    setHasConsent(!!data);
+    // Then check the DB
+    try {
+      const { data, error } = await supabase
+        .from("consent_records")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("consent_given", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        // Table might not exist yet — default to no consent so the form shows
+        console.warn("Consent check DB error (non-blocking):", error.message);
+        setHasConsent(false);
+        return;
+      }
+
+      if (data) {
+        // Cache it locally for next time
+        localStorage.setItem(`apna-consent-${user.id}`, "true");
+      }
+      setHasConsent(!!data);
+    } catch {
+      setHasConsent(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -108,6 +136,18 @@ const Dashboard = () => {
       navigate("/auth");
     }
   };
+
+  // ✅ Show spinner while checking session — prevents flash-redirect to /auth
+  if (sessionLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background/85 to-background/65">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-foreground/60 text-sm">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     navigate("/auth");

@@ -5,9 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
 import ResultsDisplay from "./ResultsDisplay";
+import type { Tables } from "@/integrations/supabase/types";
+
+type SymptomSession = Tables<"symptom_sessions">;
 
 const SessionHistory = () => {
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<SymptomSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 

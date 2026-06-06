@@ -192,3 +192,64 @@
     box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
   }
 }
+
+/* ────────────────────────────────────────────────────────── */
+/* Missing keyframe animations used throughout the app       */
+/* ────────────────────────────────────────────────────────── */
+
+@keyframes floaty {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  33% {
+    transform: translateY(-18px) scale(1.02);
+  }
+  66% {
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-floaty {
+  animation: floaty 6s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsla(var(--muted) / 0.5) 25%,
+    hsla(var(--muted) / 0.8) 50%,
+    hsla(var(--muted) / 0.5) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+

@@ -125,8 +125,15 @@ const ResultsDisplay = ({ sessionId, onNewAssessment }: ResultsDisplayProps) => 
 
   useEffect(() => {
     fetchSession();
-    // Poll for updates every 1 second to catch real-time changes
-    const interval = setInterval(fetchSession, 1000);
+    // Poll every 1.5s to catch real-time updates, but stop once data is fully loaded
+    const interval = setInterval(() => {
+      // If we already have complete data, stop polling
+      if (session?.triage_level && session?.recommendations) {
+        clearInterval(interval);
+        return;
+      }
+      fetchSession();
+    }, 1500);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
